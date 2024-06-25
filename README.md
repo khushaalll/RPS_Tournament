@@ -30,8 +30,8 @@ I have implemented a Rock Paper Scissors (RPS) game tournament using Erlang. Mul
 
 1. **Clone the repository**:
     ```bash
-    git clone https://github.com/yourusername/your-repo-name.git
-    cd your-repo-name
+    git clone https://github.com/khushaalll/RPS_Tournament.git
+    cd RPS_Tournament.git
     ```
 
 2. **Compile and run**:
