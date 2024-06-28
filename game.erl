@@ -22,7 +22,7 @@ start([PlayerFile]) ->
     ets:new(player_credits_table, [named_table, set, public]),
     lists:foreach(fun({Name, Credits, _}) -> ets:insert(player_credits_table, {Name, Credits}) end, Players),
     timer:sleep(uniform(100)),
-    lists:foreach(fun({_, _, Pid}) -> Pid ! {start, Players} end, Players),
+    lists:foreach(fun({Name, _, Pid}) -> Pid ! {start, Name, Players} end, Players),
     master(Dict, 1).
 
 
@@ -30,11 +30,17 @@ start([PlayerFile]) ->
 master(Dict, Game_id) ->
     receive
         {requestNewGame, Name1, Id1, Name2, Id2} ->
+            timer:sleep(100),
             io:fwrite("+ [~p] New game for ~p -> ~p\n",[Game_id, Name1, Name2]),
             Dict2 = maps:put(Game_id, {'_','_','_','_'}, Dict),
+            timer:sleep(100),
             Id1 ! {sendMove, Game_id, Name1, self()},
             Id2 ! {sendMove, Game_id, Name2, self()},
             master(Dict2, Game_id+1);
+        {selfCheck, Pid, Name} ->
+            Credits = ets:lookup_element(player_credits_table, Name, 2),
+            Pid ! {selfRecv, Credits},
+            master(Dict, Game_id);
         {checkCredit, Pid, Name, OppId} ->
             Credits = ets:lookup_element(player_credits_table, Name, 2),
             Pid ! {recvCredits, Credits, OppId},
@@ -77,7 +83,7 @@ master(Dict, Game_id) ->
                             io:fwrite("~p: Credits used: ~p Credits left:~p\n",[Winner, TempCreds-Winner_Credits, Winner_Credits]),
                             lists:foreach(
                             fun({Name, _, _}) when Name =:= Winner ->
-                            ok; % Do nothing for the excluded name
+                            ok;
                             ({Name, Creds, _}) -> io:format("~p: Credits used: ~p, Credits left:0\n", [Name, Creds])
                             end,
                             Players),
@@ -85,8 +91,23 @@ master(Dict, Game_id) ->
                             io:fwrite("Winner of the game is: ~p\n", [Winner]),
                             io:fwrite("See you next year\n");
                         _ ->
-                            TempPid ! {start, Players},
-                            Pid ! {start, Players},
+                            timer:sleep(100),
+                            Cred1 = ets:lookup_element(player_credits_table, Name1, 2),
+                            if
+                                Cred1 >0 ->
+                                    timer:sleep(uniform(100)),
+                                    TempPid ! {start, Name1, Players};
+                                true ->
+                                    ok
+                        end,
+                        Cred2 = ets:lookup_element(player_credits_table, Name, 2),
+                        if
+                                Cred2 >0 ->
+                                    timer:sleep(uniform(100)),
+                                    Pid ! {start, Name, Players};
+                                true ->
+                                    ok
+                        end,
                             master(Dict, Game_id)
                     end
                     
